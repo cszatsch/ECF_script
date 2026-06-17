@@ -11,7 +11,7 @@
     <h1>Convertisseur CSV</h1>
     <p class="subtitle">
       Pivot des fiches fiscales partenaires&nbsp;: une ligne par partenaire,
-      une colonne par catégorie (FR0&nbsp;/&nbsp;FR1&nbsp;/&nbsp;FR2).
+      une colonne par type d'identifiant (TVA&nbsp;intracom / SIRET / SIREN).
     </p>
 
     {% with messages = get_flashed_messages() %}
@@ -41,12 +41,15 @@
       <summary>Format attendu</summary>
       <p>
         <strong>Entrée</strong> — 3 colonnes&nbsp;: <code>Partenaire</code>,
-        <code>Catégorie</code> (FR0/FR1/FR2), <code>Nº ID fiscale</code>.
+        <code>Catégorie</code> (format <code>[xx][n]</code>, ex. FR0/FR1/FR2),
+        <code>Nº ID fiscale</code>.
       </p>
       <p>
         <strong>Sortie</strong> — une ligne par partenaire, colonnes&nbsp;:
-        <code>Partenaire</code>, <code>FR0 - TVA intracom</code>,
-        <code>FR1 - SIRET</code>, <code>FR2 - SIREN</code>.
+        <code>Partenaire</code>, <code>TVA intracom_xx0</code>,
+        <code>SIRET_xx1</code>, <code>SIREN_xx2</code>. La valeur est rangée
+        selon le dernier chiffre de la catégorie (0&nbsp;→&nbsp;TVA intracom,
+        1&nbsp;→&nbsp;SIRET, 2&nbsp;→&nbsp;SIREN), quel que soit le pays.
       </p>
       <p>
         Séparateur (<code>;</code> ou tabulation) et encodage détectés

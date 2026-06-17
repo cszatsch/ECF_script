@@ -20,7 +20,7 @@ INPUT_SEMI = (
 )
 
 EXPECTED_SEMI = (
-    "Partenaire;FR0 - TVA intracom;FR1 - SIRET;FR2 - SIREN\r\n"
+    "Partenaire;TVA intracom_xx0;SIRET_xx1;SIREN_xx2\r\n"
     "20000068;FR55389036427;3,89036E+13;389036427\r\n"
     "20000069;FR44352689327;3,52689E+13;352689327\r\n"
 )
@@ -46,23 +46,39 @@ def test_preserves_scientific_notation():
     assert "3,89036E+13" in converter.convert(INPUT_SEMI)
 
 
-def test_missing_categories_leave_blanks():
-    # Un partenaire avec seulement FR0 : les colonnes FR1/FR2 restent vides,
-    # mais le schéma (3 colonnes de catégories) est conservé.
-    data = "Partenaire;Catégorie;Nº ID fiscale\n20000070;FR0;FRXX\n"
+def test_routing_is_country_agnostic():
+    # Le routage dépend du dernier chiffre du code, pas du code pays :
+    # DE0/DE1/DE2 vont dans les mêmes colonnes que FR0/FR1/FR2.
+    data = (
+        "Partenaire;Catégorie;Nº ID fiscale\n"
+        "30000001;DE0;DE123456789\n"
+        "30000001;DE1;1,1E+13\n"
+        "30000001;DE2;111\n"
+    )
     lines = converter.convert(data).strip().split("\r\n")
-    assert lines[0] == "Partenaire;FR0 - TVA intracom;FR1 - SIRET;FR2 - SIREN"
-    assert lines[1] == "20000070;FRXX;;"
+    assert lines[0] == "Partenaire;TVA intracom_xx0;SIRET_xx1;SIREN_xx2"
+    assert lines[1] == "30000001;DE123456789;1,1E+13;111"
 
 
-def test_unknown_category_appended():
+def test_partial_partner_leaves_blanks():
+    # Un partenaire avec une seule valeur : les autres colonnes restent vides,
+    # mais le schéma (3 colonnes) est conservé.
+    data = "Partenaire;Catégorie;Nº ID fiscale\n20000070;FR1;ABC\n"
+    lines = converter.convert(data).strip().split("\r\n")
+    assert lines[0] == "Partenaire;TVA intracom_xx0;SIRET_xx1;SIREN_xx2"
+    assert lines[1] == "20000070;;ABC;"
+
+
+def test_unexpected_category_appended():
+    # Un code ne se terminant pas par 0/1/2 n'est pas perdu : il obtient
+    # sa propre colonne, ajoutée en fin.
     data = (
         "Partenaire;Catégorie;Nº ID fiscale\n"
         "20000071;FR0;A\n"
         "20000071;FR9;Z\n"
     )
     header = converter.convert(data).split("\r\n")[0]
-    assert header.endswith("FR9")  # catégorie inconnue ajoutée en fin
+    assert header.endswith("FR9")
 
 
 def test_decode_bytes_cp1252():

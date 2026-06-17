@@ -2,8 +2,7 @@
 
 Outil qui **pivote** un fichier CSV de fiches fiscales : le fichier d'entrée a
 une ligne par couple *(Partenaire, Catégorie)*, le fichier de sortie regroupe
-**une ligne par partenaire** avec **une colonne par catégorie** (en-têtes
-renommées).
+**une ligne par partenaire** avec **une colonne par type d'identifiant**.
 
 Il se présente sous deux formes partageant la même logique :
 
@@ -26,18 +25,25 @@ Il se présente sous deux formes partageant la même logique :
 
 ### Sortie
 
-| Partenaire | FR0 - TVA intracom | FR1 - SIRET | FR2 - SIREN |
-|------------|--------------------|-------------|-------------|
-| 20000068   | FR55389036427      | 3,89036E+13 | 389036427   |
-| 20000069   | FR44352689327      | 3,52689E+13 | 352689327   |
+| Partenaire | TVA intracom_xx0 | SIRET_xx1   | SIREN_xx2 |
+|------------|------------------|-------------|-----------|
+| 20000068   | FR55389036427    | 3,89036E+13 | 389036427 |
+| 20000069   | FR44352689327    | 3,52689E+13 | 352689327 |
 
-Correspondance des catégories appliquée par défaut :
+### Règle de routage
 
-| Catégorie | Colonne de sortie    |
-|-----------|----------------------|
-| `FR0`     | `FR0 - TVA intracom` |
-| `FR1`     | `FR1 - SIRET`        |
-| `FR2`     | `FR2 - SIREN`        |
+Le code de la colonne `Catégorie` a toujours la forme `[xx][n]` : deux lettres
+(code pays, ex. `FR`) suivies d'un chiffre. **Seul le dernier chiffre**
+détermine la colonne de destination, **quel que soit le pays** :
+
+| Dernier caractère | Exemples     | Colonne de sortie  |
+|-------------------|--------------|--------------------|
+| `0`               | `FR0`, `DE0` | `TVA intracom_xx0` |
+| `1`               | `FR1`, `DE1` | `SIRET_xx1`        |
+| `2`               | `FR2`, `DE2` | `SIREN_xx2`        |
+
+> Le `xx` des en-têtes est littéral (placeholder du code pays) : la colonne est
+> commune à tous les pays.
 
 ## Particularités
 
@@ -50,8 +56,10 @@ Correspondance des catégories appliquée par défaut :
   (virgule décimale) n'est jamais reconvertie ni reformatée.
 - **En-têtes reconnus de façon souple** (insensible à la casse / aux accents),
   avec repli sur l'ordre des colonnes (Partenaire, Catégorie, Nº ID fiscale).
-- **Schéma de sortie stable** : les trois colonnes FR0/FR1/FR2 sont toujours
-  présentes même si une valeur manque (cellule laissée vide).
+- **Schéma de sortie stable** : les trois colonnes sont toujours présentes,
+  même si un partenaire ne possède qu'une partie des valeurs (cellule laissée
+  vide). Un code au format inattendu (ne se terminant pas par 0/1/2) n'est pas
+  perdu : il reçoit sa propre colonne ajoutée en fin.
 
 ## Installation
 
@@ -85,11 +93,19 @@ texte_sortie = convert(texte_entree)          # str  -> str
 octets_sortie = convert_bytes(octets_entree)  # bytes -> bytes (UTF-8 + BOM)
 ```
 
-## Adapter les catégories / libellés
+## Adapter les libellés de colonnes
 
-Modifiez le dictionnaire `DEFAULT_CATEGORY_LABELS` dans `converter.py`. L'ordre
-des clés fixe l'ordre des colonnes de sortie. Toute catégorie présente dans le
-fichier mais absente du dictionnaire est ajoutée en fin, sous son nom brut.
+Modifiez le dictionnaire `DEFAULT_COLUMN_LABELS` dans `converter.py`. Il associe
+le **dernier caractère** du code catégorie au libellé de colonne ; l'ordre des
+clés fixe l'ordre des colonnes de sortie.
+
+```python
+DEFAULT_COLUMN_LABELS = {
+    "0": "TVA intracom_xx0",
+    "1": "SIRET_xx1",
+    "2": "SIREN_xx2",
+}
+```
 
 ## Tests
 

@@ -8,16 +8,23 @@ Le fichier d'ENTRÉE contient une ligne par couple (Partenaire, Catégorie) :
     20000068   ; FR2       ; 389036427
     ...
 
-Le fichier de SORTIE regroupe une ligne par Partenaire, avec une colonne
-par catégorie (en-têtes renommées) :
+Le code de la colonne « Catégorie » a toujours la forme [xx][n] : deux
+lettres (code pays, ex. FR) suivies d'un chiffre 0, 1 ou 2. Seul ce dernier
+chiffre détermine la colonne de destination, indépendamment du pays :
 
-    Partenaire ; FR0 - TVA intracom ; FR1 - SIRET ; FR2 - SIREN
-    20000068   ; FR55389036427      ; 3,89036E+13 ; 389036427
+    se termine par 0 -> TVA intracom_xx0
+    se termine par 1 -> SIRET_xx1
+    se termine par 2 -> SIREN_xx2
+
+Le fichier de SORTIE regroupe (pivot) une ligne par Partenaire :
+
+    Partenaire ; TVA intracom_xx0 ; SIRET_xx1   ; SIREN_xx2
+    20000068   ; FR55389036427    ; 3,89036E+13 ; 389036427
 
 Le séparateur (« ; » ou tabulation) et l'encodage sont détectés
 automatiquement. Les valeurs sont recopiées telles quelles : une valeur
 comme « 3,89036E+13 » est préservée à l'identique (aucune conversion
-numérique).
+numérique). Les colonnes sans valeur pour un partenaire restent vides.
 
 Ce module est utilisable :
   * en bibliothèque  : ``convert(text)`` / ``convert_bytes(data)``
@@ -30,13 +37,15 @@ import csv
 import io
 import unicodedata
 
-# Renommage des en-têtes de colonnes en sortie.
-# L'ordre des clés détermine l'ordre des colonnes dans le fichier produit.
-# Pour adapter l'outil (autres catégories / autres libellés), modifiez ce dict.
-DEFAULT_CATEGORY_LABELS = {
-    "FR0": "FR0 - TVA intracom",
-    "FR1": "FR1 - SIRET",
-    "FR2": "FR2 - SIREN",
+# Correspondance « dernier caractère du code catégorie » -> en-tête de colonne.
+# Le code catégorie a la forme [xx][n] (2 lettres pays + 1 chiffre) ; seul le
+# chiffre final détermine la colonne, quel que soit le pays. L'ordre des clés
+# fixe l'ordre des colonnes en sortie. Pour adapter l'outil (autres libellés),
+# modifiez ce dictionnaire.
+DEFAULT_COLUMN_LABELS = {
+    "0": "TVA intracom_xx0",
+    "1": "SIRET_xx1",
+    "2": "SIREN_xx2",
 }
 
 # Séparateurs testés, par ordre de priorité en cas d'égalité.
@@ -110,16 +119,31 @@ def _find_columns(header: list[str]) -> tuple[int, int, int]:
     return idx_partner, idx_category, idx_value
 
 
-def convert(text: str, category_labels: dict[str, str] | None = None) -> str:
+def _column_key(category: str, labels: dict[str, str]) -> str:
+    """Clé de la colonne de destination pour un code catégorie.
+
+    Le code a la forme [xx][n] : seul le dernier caractère (le chiffre)
+    détermine la colonne. Renvoie ce chiffre s'il correspond à une colonne
+    connue ; sinon, par sécurité, renvoie le code complet (la valeur n'est
+    jamais perdue, elle est placée dans une colonne dédiée).
+    """
+    category = category.strip()
+    if category and category[-1] in labels:
+        return category[-1]
+    return category
+
+
+def convert(text: str, column_labels: dict[str, str] | None = None) -> str:
     """Transforme le contenu CSV d'entrée et renvoie le CSV de sortie (str).
 
     :param text: contenu du fichier d'entrée.
-    :param category_labels: correspondance catégorie -> libellé de colonne.
-                            Par défaut :data:`DEFAULT_CATEGORY_LABELS`.
+    :param column_labels: correspondance « dernier caractère de la catégorie »
+                          -> libellé de colonne. Par défaut
+                          :data:`DEFAULT_COLUMN_LABELS`.
     :raises ValueError: si le fichier est vide ou le format non reconnu.
     """
-    if category_labels is None:
-        category_labels = DEFAULT_CATEGORY_LABELS
+    if column_labels is None:
+        column_labels = DEFAULT_COLUMN_LABELS
 
     first_line = next((ln for ln in text.splitlines() if ln.strip()), "")
     if not first_line:
@@ -142,35 +166,37 @@ def convert(text: str, category_labels: dict[str, str] | None = None) -> str:
     def cell(row: list[str], idx: int) -> str:
         return row[idx].strip() if idx < len(row) else ""
 
-    # {partenaire: {catégorie: valeur}} — l'ordre d'apparition est préservé.
+    # {partenaire: {clé_colonne: valeur}} — l'ordre d'apparition est préservé.
     partners: dict[str, dict[str, str]] = {}
-    extra_categories: list[str] = []
+    extra_keys: list[str] = []
     for row in rows[1:]:
         partner = cell(row, idx_partner)
         if not partner:
             continue
-        category = cell(row, idx_category)
-        value = cell(row, idx_value)
-        partners.setdefault(partner, {})[category] = value
-        if category and category not in category_labels and category not in extra_categories:
-            extra_categories.append(category)
+        key = _column_key(cell(row, idx_category), column_labels)
+        if not key:
+            continue
+        partners.setdefault(partner, {})[key] = cell(row, idx_value)
+        if key not in column_labels and key not in extra_keys:
+            extra_keys.append(key)
 
-    # Colonnes de sortie : toujours toutes les catégories connues (schéma
-    # stable), puis d'éventuelles catégories inattendues rencontrées.
-    ordered_categories = list(category_labels) + extra_categories
+    # Colonnes de sortie : toujours toutes les colonnes connues (schéma stable,
+    # cellules vides si la valeur manque), puis d'éventuels codes au format
+    # inattendu rencontrés dans le fichier.
+    ordered_keys = list(column_labels) + extra_keys
 
     out = io.StringIO()
     writer = csv.writer(out, delimiter=delimiter, lineterminator="\r\n")
     header_out = [header[idx_partner].strip() or "Partenaire"]
-    header_out += [category_labels.get(c, c) for c in ordered_categories]
+    header_out += [column_labels.get(k, k) for k in ordered_keys]
     writer.writerow(header_out)
     for partner, values in partners.items():
-        writer.writerow([partner] + [values.get(c, "") for c in ordered_categories])
+        writer.writerow([partner] + [values.get(k, "") for k in ordered_keys])
 
     return out.getvalue()
 
 
-def convert_bytes(data: bytes, category_labels: dict[str, str] | None = None) -> bytes:
+def convert_bytes(data: bytes, column_labels: dict[str, str] | None = None) -> bytes:
     """Variante octets -> octets.
 
     Décode l'entrée (encodage détecté) et renvoie un CSV encodé en UTF-8
@@ -178,7 +204,7 @@ def convert_bytes(data: bytes, category_labels: dict[str, str] | None = None) ->
     Excel.
     """
     text = decode_bytes(data)
-    return convert(text, category_labels).encode("utf-8-sig")
+    return convert(text, column_labels).encode("utf-8-sig")
 
 
 def _main(argv: list[str] | None = None) -> int:
