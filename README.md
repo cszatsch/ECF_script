@@ -32,15 +32,23 @@ Il se présente sous deux formes partageant la même logique :
 
 ### Règle de routage
 
-Le code de la colonne `Catégorie` a toujours la forme `[xx][n]` : deux lettres
-(code pays, ex. `FR`) suivies d'un chiffre. **Seul le dernier chiffre**
-détermine la colonne de destination, **quel que soit le pays** :
+Le code de la colonne `Catégorie` a la forme `[xx][n]` : deux lettres (code
+pays, ex. `FR`) suivies d'un chiffre. **Seul le dernier caractère** détermine
+la colonne de destination, **quel que soit le pays** :
 
-| Dernier caractère | Exemples     | Colonne de sortie  |
-|-------------------|--------------|--------------------|
-| `0`               | `FR0`, `DE0` | `TVA intracom_xx0` |
-| `1`               | `FR1`, `DE1` | `SIRET_xx1`        |
-| `2`               | `FR2`, `DE2` | `SIREN_xx2`        |
+| Dernier caractère          | Exemples            | Colonne de sortie  |
+|----------------------------|---------------------|--------------------|
+| `1`                        | `FR1`, `DE1`        | `SIRET_xx1`        |
+| `2`                        | `FR2`, `DE2`        | `SIREN_xx2`        |
+| `0` **ou tout autre** (3, 4, 5…) | `FR0`, `FR3`, `FR4` | `TVA intracom_xx0` (par défaut) |
+
+**Colonne par défaut.** Tout code ne se terminant pas par `1` ou `2` (donc
+`0`, `3`, `4`, `5`…) alimente `TVA intracom_xx0`.
+
+**Priorité en cas de valeurs multiples.** Si un même partenaire possède
+plusieurs codes pointant vers `TVA intracom_xx0` (ex. `FR0` **et** `FR3`), la
+valeur du code se terminant par `0` est retenue ; les autres sont ignorées. À
+défaut de code se terminant par `0`, la première valeur rencontrée est gardée.
 
 > Le `xx` des en-têtes est littéral (placeholder du code pays) : la colonne est
 > commune à tous les pays.
@@ -58,8 +66,8 @@ détermine la colonne de destination, **quel que soit le pays** :
   avec repli sur l'ordre des colonnes (Partenaire, Catégorie, Nº ID fiscale).
 - **Schéma de sortie stable** : les trois colonnes sont toujours présentes,
   même si un partenaire ne possède qu'une partie des valeurs (cellule laissée
-  vide). Un code au format inattendu (ne se terminant pas par 0/1/2) n'est pas
-  perdu : il reçoit sa propre colonne ajoutée en fin.
+  vide). Aucune colonne supplémentaire n'est créée : tout code non rattaché à
+  SIRET (1) ou SIREN (2) tombe dans la colonne par défaut `TVA intracom_xx0`.
 
 ## Installation
 

@@ -47,7 +47,7 @@ def test_preserves_scientific_notation():
 
 
 def test_routing_is_country_agnostic():
-    # Le routage dépend du dernier chiffre du code, pas du code pays :
+    # Le routage dépend du dernier caractère du code, pas du code pays :
     # DE0/DE1/DE2 vont dans les mêmes colonnes que FR0/FR1/FR2.
     data = (
         "Partenaire;Catégorie;Nº ID fiscale\n"
@@ -61,24 +61,50 @@ def test_routing_is_country_agnostic():
 
 
 def test_partial_partner_leaves_blanks():
-    # Un partenaire avec une seule valeur : les autres colonnes restent vides,
-    # mais le schéma (3 colonnes) est conservé.
+    # Un partenaire avec une seule valeur (ici un SIRET) : les autres colonnes
+    # restent vides, mais le schéma (3 colonnes) est conservé.
     data = "Partenaire;Catégorie;Nº ID fiscale\n20000070;FR1;ABC\n"
     lines = converter.convert(data).strip().split("\r\n")
     assert lines[0] == "Partenaire;TVA intracom_xx0;SIRET_xx1;SIREN_xx2"
     assert lines[1] == "20000070;;ABC;"
 
 
-def test_unexpected_category_appended():
-    # Un code ne se terminant pas par 0/1/2 n'est pas perdu : il obtient
-    # sa propre colonne, ajoutée en fin.
+def test_default_column_catches_other_digits():
+    # Règle par défaut : un code se terminant par un chiffre autre que 1/2
+    # (ex. 3) alimente TVA intracom_xx0, sans créer de colonne supplémentaire.
+    data = "Partenaire;Catégorie;Nº ID fiscale\n20000071;FR3;XYZ\n"
+    lines = converter.convert(data).strip().split("\r\n")
+    assert lines[0] == "Partenaire;TVA intracom_xx0;SIRET_xx1;SIREN_xx2"
+    assert lines[1] == "20000071;XYZ;;"
+
+
+def test_default_column_zero_has_priority():
+    # FR0 et FR3 pointent tous deux vers TVA intracom_xx0 : la valeur du code
+    # se terminant par 0 l'emporte, quel que soit l'ordre des lignes.
+    data_zero_first = (
+        "Partenaire;Catégorie;Nº ID fiscale\n"
+        "20000072;FR0;VALEUR_ZERO\n"
+        "20000072;FR3;VALEUR_TROIS\n"
+    )
+    data_three_first = (
+        "Partenaire;Catégorie;Nº ID fiscale\n"
+        "20000072;FR3;VALEUR_TROIS\n"
+        "20000072;FR0;VALEUR_ZERO\n"
+    )
+    for data in (data_zero_first, data_three_first):
+        line = converter.convert(data).strip().split("\r\n")[1]
+        assert line == "20000072;VALEUR_ZERO;;"
+
+
+def test_default_column_without_zero_keeps_first():
+    # Sans code se terminant par 0, la première valeur par défaut est gardée.
     data = (
         "Partenaire;Catégorie;Nº ID fiscale\n"
-        "20000071;FR0;A\n"
-        "20000071;FR9;Z\n"
+        "20000073;FR3;PREMIER\n"
+        "20000073;FR4;SECOND\n"
     )
-    header = converter.convert(data).split("\r\n")[0]
-    assert header.endswith("FR9")
+    line = converter.convert(data).strip().split("\r\n")[1]
+    assert line == "20000073;PREMIER;;"
 
 
 def test_decode_bytes_cp1252():

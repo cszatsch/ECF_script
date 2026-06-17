@@ -48,8 +48,12 @@
         <strong>Sortie</strong> — une ligne par partenaire, colonnes&nbsp;:
         <code>Partenaire</code>, <code>TVA intracom_xx0</code>,
         <code>SIRET_xx1</code>, <code>SIREN_xx2</code>. La valeur est rangée
-        selon le dernier chiffre de la catégorie (0&nbsp;→&nbsp;TVA intracom,
-        1&nbsp;→&nbsp;SIRET, 2&nbsp;→&nbsp;SIREN), quel que soit le pays.
+        selon le dernier caractère de la catégorie&nbsp;:
+        <strong>1&nbsp;→&nbsp;SIRET</strong>,
+        <strong>2&nbsp;→&nbsp;SIREN</strong>, et
+        <strong>tout le reste (0, 3, 4…)&nbsp;→&nbsp;TVA intracom</strong>
+        (colonne par défaut). Si plusieurs codes visent la TVA intracom, celui
+        finissant par 0 est prioritaire.
       </p>
       <p>
         Séparateur (<code>;</code> ou tabulation) et encodage détectés

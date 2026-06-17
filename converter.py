@@ -8,13 +8,20 @@ Le fichier d'ENTRÉE contient une ligne par couple (Partenaire, Catégorie) :
     20000068   ; FR2       ; 389036427
     ...
 
-Le code de la colonne « Catégorie » a toujours la forme [xx][n] : deux
-lettres (code pays, ex. FR) suivies d'un chiffre 0, 1 ou 2. Seul ce dernier
-chiffre détermine la colonne de destination, indépendamment du pays :
+Le code de la colonne « Catégorie » a la forme [xx][n] : deux lettres (code
+pays, ex. FR) suivies d'un chiffre. Seul ce dernier caractère détermine la
+colonne de destination, indépendamment du pays :
 
-    se termine par 0 -> TVA intracom_xx0
-    se termine par 1 -> SIRET_xx1
-    se termine par 2 -> SIREN_xx2
+    se termine par 1            -> SIRET_xx1
+    se termine par 2            -> SIREN_xx2
+    se termine par 0 (ou autre) -> TVA intracom_xx0   (destination par défaut)
+
+Tout code ne se terminant pas par 1 ou 2 (0, 3, 4, 5…) alimente la colonne
+par défaut « TVA intracom_xx0 ». Si un même partenaire possède plusieurs
+codes pointant vers cette colonne (ex. FR0 et FR3), la valeur du code se
+terminant par 0 est retenue ; les autres (3, 4, 5…) sont ignorées. À défaut
+de code se terminant par 0, la première valeur par défaut rencontrée est
+conservée.
 
 Le fichier de SORTIE regroupe (pivot) une ligne par Partenaire :
 
@@ -37,11 +44,11 @@ import csv
 import io
 import unicodedata
 
-# Correspondance « dernier caractère du code catégorie » -> en-tête de colonne.
-# Le code catégorie a la forme [xx][n] (2 lettres pays + 1 chiffre) ; seul le
-# chiffre final détermine la colonne, quel que soit le pays. L'ordre des clés
-# fixe l'ordre des colonnes en sortie. Pour adapter l'outil (autres libellés),
-# modifiez ce dictionnaire.
+# Correspondance « clé de colonne » -> en-tête de colonne. La clé est :
+#   "1" si le code catégorie se termine par 1, "2" s'il se termine par 2,
+#   "0" dans tous les autres cas (destination par défaut).
+# L'ordre des clés fixe l'ordre des colonnes en sortie. Pour adapter l'outil
+# (autres libellés), modifiez ce dictionnaire.
 DEFAULT_COLUMN_LABELS = {
     "0": "TVA intracom_xx0",
     "1": "SIRET_xx1",
@@ -119,26 +126,11 @@ def _find_columns(header: list[str]) -> tuple[int, int, int]:
     return idx_partner, idx_category, idx_value
 
 
-def _column_key(category: str, labels: dict[str, str]) -> str:
-    """Clé de la colonne de destination pour un code catégorie.
-
-    Le code a la forme [xx][n] : seul le dernier caractère (le chiffre)
-    détermine la colonne. Renvoie ce chiffre s'il correspond à une colonne
-    connue ; sinon, par sécurité, renvoie le code complet (la valeur n'est
-    jamais perdue, elle est placée dans une colonne dédiée).
-    """
-    category = category.strip()
-    if category and category[-1] in labels:
-        return category[-1]
-    return category
-
-
 def convert(text: str, column_labels: dict[str, str] | None = None) -> str:
     """Transforme le contenu CSV d'entrée et renvoie le CSV de sortie (str).
 
     :param text: contenu du fichier d'entrée.
-    :param column_labels: correspondance « dernier caractère de la catégorie »
-                          -> libellé de colonne. Par défaut
+    :param column_labels: correspondance clé de colonne -> libellé. Par défaut
                           :data:`DEFAULT_COLUMN_LABELS`.
     :raises ValueError: si le fichier est vide ou le format non reconnu.
     """
@@ -166,24 +158,27 @@ def convert(text: str, column_labels: dict[str, str] | None = None) -> str:
     def cell(row: list[str], idx: int) -> str:
         return row[idx].strip() if idx < len(row) else ""
 
-    # {partenaire: {clé_colonne: valeur}} — l'ordre d'apparition est préservé.
+    # {partenaire: {"0"|"1"|"2": valeur}} — l'ordre d'apparition est préservé.
     partners: dict[str, dict[str, str]] = {}
-    extra_keys: list[str] = []
     for row in rows[1:]:
         partner = cell(row, idx_partner)
         if not partner:
             continue
-        key = _column_key(cell(row, idx_category), column_labels)
-        if not key:
-            continue
-        partners.setdefault(partner, {})[key] = cell(row, idx_value)
-        if key not in column_labels and key not in extra_keys:
-            extra_keys.append(key)
+        value = cell(row, idx_value)
+        last = cell(row, idx_category)[-1:]  # dernier caractère du code, ou ""
+        bucket = partners.setdefault(partner, {})
+        if last == "1":
+            bucket["1"] = value          # ...1 -> SIRET
+        elif last == "2":
+            bucket["2"] = value          # ...2 -> SIREN
+        elif last == "0" or "0" not in bucket:
+            # Cas par défaut (se termine par 0, 3, 4, 5…, ou autre).
+            # Le code se terminant par 0 est prioritaire et écrase ; sinon on
+            # conserve la première valeur par défaut rencontrée.
+            bucket["0"] = value
 
-    # Colonnes de sortie : toujours toutes les colonnes connues (schéma stable,
-    # cellules vides si la valeur manque), puis d'éventuels codes au format
-    # inattendu rencontrés dans le fichier.
-    ordered_keys = list(column_labels) + extra_keys
+    # Schéma de sortie stable : toujours les trois colonnes connues.
+    ordered_keys = list(column_labels)
 
     out = io.StringIO()
     writer = csv.writer(out, delimiter=delimiter, lineterminator="\r\n")
