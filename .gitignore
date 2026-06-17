@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Outils
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Sorties générées localement
+*_converti.csv
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

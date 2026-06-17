@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convertisseur CSV — Fiches fiscales partenaires</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="card">
+    <h1>Convertisseur CSV</h1>
+    <p class="subtitle">
+      Pivot des fiches fiscales partenaires&nbsp;: une ligne par partenaire,
+      une colonne par catégorie (FR0&nbsp;/&nbsp;FR1&nbsp;/&nbsp;FR2).
+    </p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert" role="alert">
+          {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('convert_route') }}" method="post"
+          enctype="multipart/form-data">
+      <label id="dropzone" for="fichier" class="dropzone">
+        <span class="dz-icon" aria-hidden="true">⬆</span>
+        <span class="dz-text">
+          Glissez votre fichier CSV ici<br>
+          ou <strong>cliquez pour parcourir</strong>
+        </span>
+        <span id="filename" class="filename"></span>
+        <input id="fichier" name="fichier" type="file"
+               accept=".csv,text/csv" required hidden>
+      </label>
+      <button type="submit" class="btn">Convertir et télécharger</button>
+    </form>
+
+    <details class="help">
+      <summary>Format attendu</summary>
+      <p>
+        <strong>Entrée</strong> — 3 colonnes&nbsp;: <code>Partenaire</code>,
+        <code>Catégorie</code> (FR0/FR1/FR2), <code>Nº ID fiscale</code>.
+      </p>
+      <p>
+        <strong>Sortie</strong> — une ligne par partenaire, colonnes&nbsp;:
+        <code>Partenaire</code>, <code>FR0 - TVA intracom</code>,
+        <code>FR1 - SIRET</code>, <code>FR2 - SIREN</code>.
+      </p>
+      <p>
+        Séparateur (<code>;</code> ou tabulation) et encodage détectés
+        automatiquement. Les valeurs sont recopiées telles quelles. Le fichier
+        produit est en UTF-8 (compatible Excel).
+      </p>
+    </details>
+  </main>
+
+  <script>
+    const input = document.getElementById('fichier');
+    const dropzone = document.getElementById('dropzone');
+    const filename = document.getElementById('filename');
+
+    function showName() {
+      filename.textContent = input.files.length ? input.files[0].name : '';
+    }
+    input.addEventListener('change', showName);
+
+    ['dragover', 'dragenter'].forEach(evt =>
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropzone.classList.add('over');
+      })
+    );
+    ['dragleave', 'drop'].forEach(evt =>
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropzone.classList.remove('over');
+      })
+    );
+    dropzone.addEventListener('drop', e => {
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        showName();
+      }
+    });
+  </script>
+</body>
+</html>
