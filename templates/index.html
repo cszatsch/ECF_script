@@ -8,6 +8,7 @@
 </head>
 <body>
   <main class="card">
+    <nav class="topnav"><a href="{{ url_for('home') }}">← Accueil</a></nav>
     <h1>Convertisseur CSV</h1>
     <p class="subtitle">
       Pivot des fiches fiscales partenaires&nbsp;: une ligne par partenaire,
@@ -22,7 +23,7 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('convert_route') }}" method="post"
+    <form action="{{ url_for('converter_convert') }}" method="post"
           enctype="multipart/form-data">
       <label id="dropzone" for="fichier" class="dropzone">
         <span class="dz-icon" aria-hidden="true">⬆</span>

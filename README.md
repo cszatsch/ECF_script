@@ -1,10 +1,14 @@
 # Outils CSV — Fiches fiscales partenaires
 
-> Ce dépôt contient **deux outils** indépendants :
-> 1. **Convertisseur** (`app.py`, port 5000) — pivote un export de fiches
->    fiscales (ci-dessous) ;
-> 2. **Jointure `four_march`** (`four_march.py`, port 5001) — fusionne trois
->    exports sur la clé `PARTNER` (voir plus bas).
+> Ce dépôt réunit **deux outils** dans **une seule application web**
+> (`app.py`, port 5000) avec une page d'accueil :
+> 1. **Convertisseur** — pivote un export de fiches fiscales (ci-dessous) ;
+> 2. **Jointure `four_march`** — fusionne trois exports sur la clé `PARTNER`
+>    (voir plus bas).
+>
+> Lancez `python app.py`, ouvrez <http://127.0.0.1:5000>, puis choisissez
+> l'outil. Les deux logiques restent réutilisables séparément
+> (`converter.py`, `four_march_join.py`).
 
 ## Convertisseur CSV
 
@@ -91,8 +95,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Puis ouvrir <http://127.0.0.1:5000>, déposer le fichier CSV et télécharger le
-résultat (`<nom>_converti.csv`).
+Puis ouvrir <http://127.0.0.1:5000>, cliquer sur **Convertisseur**, déposer le
+fichier CSV et télécharger le résultat (`<nom>_converti.csv`).
 
 ## Utilisation — ligne de commande
 
@@ -136,12 +140,10 @@ Application web qui **fusionne trois exports CSV** sur la clé `PARTNER` :
 On conserve **tous les partenaires de FOURNISSEUR** et on ajoute les colonnes
 des deux autres fichiers quand le `PARTNER` correspond (cellules vides sinon).
 
-```bash
-python four_march.py        # puis http://127.0.0.1:5001
-```
-
-Déposer les trois fichiers et télécharger `four_march_resultat.csv`. Un jeu
-d'exemple est fourni dans `examples/four_march/`.
+Dans l'application (`python app.py`, <http://127.0.0.1:5000>), cliquer sur
+**Jointure four_march**, déposer les trois fichiers et télécharger
+`four_march_resultat.csv`. Un jeu d'exemple est fourni dans
+`examples/four_march/`.
 
 Détails gérés automatiquement :
 
@@ -163,11 +165,11 @@ pytest
 
 ```
 ECF_script/
-├── app.py                  # Convertisseur — application web Flask (port 5000)
+├── app.py                  # Application web Flask unifiée (accueil + 2 outils)
 ├── converter.py            # Convertisseur — logique de conversion + CLI
-├── four_march.py           # Jointure — application web Flask (port 5001)
 ├── four_march_join.py      # Jointure — logique de jointure
 ├── templates/
+│   ├── home.html           # Page d'accueil (choix de l'outil)
 │   ├── index.html          # Frontend du convertisseur
 │   └── four_march.html     # Frontend de la jointure
 ├── static/style.css        # Styles (communs)

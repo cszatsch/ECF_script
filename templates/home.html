@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Outils CSV — Fiches fiscales partenaires</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="card">
+    <h1>Outils CSV</h1>
+    <p class="subtitle">Choisissez un outil.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert" role="alert">
+          {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="home-links">
+      <a class="tool-card" href="{{ url_for('converter_page') }}">
+        <span class="tool-icon" aria-hidden="true">🔄</span>
+        <span class="tool-title">Convertisseur</span>
+        <span class="tool-desc">
+          Pivote un export de fiches fiscales : une ligne par partenaire,
+          colonnes TVA intracom / SIRET / SIREN.
+        </span>
+      </a>
+      <a class="tool-card" href="{{ url_for('join_page') }}">
+        <span class="tool-icon" aria-hidden="true">🔗</span>
+        <span class="tool-title">Jointure four_march</span>
+        <span class="tool-desc">
+          Fusionne trois exports (FOURNISSEUR, TVA, ZGESS1) sur la clé PARTNER.
+        </span>
+      </a>
+    </div>
+  </main>
+</body>
+</html>

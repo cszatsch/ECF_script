@@ -8,6 +8,7 @@
 </head>
 <body>
   <main class="card">
+    <nav class="topnav"><a href="{{ url_for('home') }}">← Accueil</a></nav>
     <h1>Jointure fournisseurs</h1>
     <p class="subtitle">
       Fusionne trois exports sur la clé <code>PARTNER</code> : le fichier
@@ -22,7 +23,7 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('join_route') }}" method="post"
+    <form action="{{ url_for('join_run') }}" method="post"
           enctype="multipart/form-data">
       <div class="file-field">
         <label for="fournisseur">1 · Fichier FOURNISSEUR (BUT000) — table de base</label>
