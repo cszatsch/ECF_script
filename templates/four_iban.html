@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jointure IBAN — four_iban</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="card">
+    <nav class="topnav"><a href="{{ url_for('home') }}">← Accueil</a></nav>
+    <h1>Jointure IBAN</h1>
+    <p class="subtitle">
+      Rattache l'<strong>IBAN</strong> à chaque coordonnée bancaire de
+      partenaire, en joignant BUT0K et TIBAN sur la clé bancaire
+      (BANKS, BANKL, BANKN, BKONT).
+    </p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert" role="alert">
+          {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('iban_run') }}" method="post"
+          enctype="multipart/form-data">
+      <div class="file-field">
+        <label for="but0k">1 · Fichier BUT0K — coordonnées bancaires par partenaire (pilote)</label>
+        <input id="but0k" name="but0k" type="file"
+               accept=".csv,text/csv" required>
+      </div>
+      <div class="file-field">
+        <label for="tiban">2 · Fichier TIBAN — table des IBAN</label>
+        <input id="tiban" name="tiban" type="file"
+               accept=".csv,text/csv" required>
+      </div>
+      <button type="submit" class="btn">Joindre et télécharger</button>
+    </form>
+
+    <details class="help">
+      <summary>Comment ça marche</summary>
+      <p>
+        La jointure est <strong>pilotée par BUT0K</strong> : une ligne de sortie
+        par coordonnée bancaire, enrichie de l'<code>IBAN</code> (et de
+        <code>ERDAT</code>, <code>TABKEY</code>) issu de TIBAN. La correspondance
+        se fait sur la clé composite
+        <code>BANKS + BANKL + BANKN + BKONT</code> (identification du compte) ;
+        sans correspondance, ces colonnes restent vides.
+      </p>
+      <p>
+        Les deux lignes d'en-tête des exports (noms techniques puis libellés
+        français) sont gérées automatiquement et reproduites en sortie.
+        Séparateur et encodage sont détectés ; la sortie est en UTF-8 (BOM),
+        séparateur <code>;</code>.
+      </p>
+    </details>
+  </main>
+</body>
+</html>

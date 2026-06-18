@@ -33,7 +33,8 @@ from flask import (
 )
 
 from converter import convert_bytes
-from four_march_join import join_bytes
+from four_iban_join import join_bytes as iban_join_bytes
+from four_march_join import join_bytes as march_join_bytes
 
 MAX_UPLOAD_MB = 100
 
@@ -105,7 +106,7 @@ def join_run():
     try:
         # Colonnes dans l'ordre FOURNISSEUR, TVA, ZGESS1 ; les lignes sont
         # pilotées par ZGESS1 (indice 2) : seuls ses PARTNER sont conservés.
-        result = join_bytes(
+        result = march_join_bytes(
             [fournisseur.read(), taxnum.read(), zgess1.read()],
             driver_index=2,
         )
@@ -121,6 +122,41 @@ def join_run():
         mimetype="text/csv",
         as_attachment=True,
         download_name="four_march_resultat.csv",
+    )
+
+
+# --- Outil 3 : jointure four_iban (IBAN) ------------------------------------
+
+@app.route("/iban", methods=["GET"])
+def iban_page():
+    return render_template("four_iban.html")
+
+
+@app.route("/iban/joindre", methods=["POST"])
+def iban_run():
+    but0k = request.files.get("but0k")
+    tiban = request.files.get("tiban")
+
+    libelles = (("BUT0K", but0k), ("TIBAN", tiban))
+    manquants = [nom for nom, f in libelles if f is None or f.filename == ""]
+    if manquants:
+        flash("Fichier(s) manquant(s) : " + ", ".join(manquants) + ".")
+        return redirect(url_for("iban_page"))
+
+    try:
+        result = iban_join_bytes(but0k.read(), tiban.read())
+    except ValueError as exc:
+        flash(f"Jointure impossible : {exc}.")
+        return redirect(url_for("iban_page"))
+    except Exception as exc:  # garde-fou : pas de 500 brute
+        flash(f"Erreur inattendue lors de la jointure : {exc}")
+        return redirect(url_for("iban_page"))
+
+    return send_file(
+        io.BytesIO(result),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="four_iban_resultat.csv",
     )
 
 

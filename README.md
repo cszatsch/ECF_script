@@ -1,14 +1,15 @@
 # Outils CSV — Fiches fiscales partenaires
 
-> Ce dépôt réunit **deux outils** dans **une seule application web**
+> Ce dépôt réunit **trois outils** dans **une seule application web**
 > (`app.py`, port 5000) avec une page d'accueil :
 > 1. **Convertisseur** — pivote un export de fiches fiscales (ci-dessous) ;
-> 2. **Jointure `four_march`** — fusionne trois exports sur la clé `PARTNER`
->    (voir plus bas).
+> 2. **Jointure `four_march`** — fusionne trois exports sur la clé `PARTNER` ;
+> 3. **Jointure `four_iban`** — rattache l'IBAN aux coordonnées bancaires des
+>    partenaires.
 >
 > Lancez `python app.py`, ouvrez <http://127.0.0.1:5000>, puis choisissez
-> l'outil. Les deux logiques restent réutilisables séparément
-> (`converter.py`, `four_march_join.py`).
+> l'outil. Les logiques restent réutilisables séparément (`converter.py`,
+> `four_march_join.py`, `four_iban_join.py`).
 
 ## Convertisseur CSV
 
@@ -160,6 +161,22 @@ Détails gérés automatiquement :
 - Séparateur (`;` ou tabulation) et encodage détectés ; sortie UTF-8 (BOM),
   séparateur `;`.
 
+## Jointure IBAN (`four_iban`)
+
+Application web qui **rattache l'IBAN** à chaque coordonnée bancaire de
+partenaire, en joignant deux exports :
+
+| Fichier | Table SAP | Rôle                                                |
+|---------|-----------|-----------------------------------------------------|
+| BUT0K   | BUT0K     | **pilote** — coordonnées bancaires par partenaire   |
+| TIBAN   | TIBAN     | table des IBAN (consultée)                           |
+
+La clé de jointure est **composite** : `BANKS + BANKL + BANKN + BKONT`
+(identification du compte bancaire). On produit une ligne par ligne de BUT0K,
+enrichie de `IBAN`, `ERDAT` (créé le) et `TABKEY` (origine) issus de TIBAN quand
+la clé correspond (cellules vides sinon). Les colonnes de la clé ne sont pas
+dupliquées. Un jeu d'exemple est fourni dans `examples/four_iban/`.
+
 ## Tests
 
 ```bash
@@ -171,15 +188,17 @@ pytest
 
 ```
 ECF_script/
-├── app.py                  # Application web Flask unifiée (accueil + 2 outils)
+├── app.py                  # Application web Flask unifiée (accueil + 3 outils)
 ├── converter.py            # Convertisseur — logique de conversion + CLI
-├── four_march_join.py      # Jointure — logique de jointure
+├── four_march_join.py      # Jointure four_march — logique
+├── four_iban_join.py       # Jointure four_iban — logique
 ├── templates/
 │   ├── home.html           # Page d'accueil (choix de l'outil)
 │   ├── index.html          # Frontend du convertisseur
-│   └── four_march.html     # Frontend de la jointure
+│   ├── four_march.html     # Frontend de la jointure four_march
+│   └── four_iban.html      # Frontend de la jointure four_iban
 ├── static/style.css        # Styles (communs)
-├── examples/               # Fichiers CSV d'exemple (dont examples/four_march/)
+├── examples/               # Fichiers CSV d'exemple (four_march/, four_iban/)
 ├── tests/                  # Tests (pytest)
 ├── requirements.txt
 └── README.md
