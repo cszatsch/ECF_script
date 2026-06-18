@@ -92,11 +92,13 @@ def join_run():
     fournisseur = request.files.get("fournisseur")
     taxnum = request.files.get("taxnum")
     zgess1 = request.files.get("zgess1")
+    bank = request.files.get("bank")
 
     libelles = (
         ("FOURNISSEUR", fournisseur),
         ("TVA (TAXNUM)", taxnum),
         ("ZGESS1", zgess1),
+        ("Coordonnées bancaires + IBAN", bank),
     )
     manquants = [nom for nom, f in libelles if f is None or f.filename == ""]
     if manquants:
@@ -104,10 +106,11 @@ def join_run():
         return redirect(url_for("join_page"))
 
     try:
-        # Colonnes dans l'ordre FOURNISSEUR, TVA, ZGESS1 ; les lignes sont
-        # pilotées par ZGESS1 (indice 2) : seuls ses PARTNER sont conservés.
+        # Colonnes : FOURNISSEUR, TVA, ZGESS1, coordonnées bancaires ; les
+        # lignes sont pilotées par ZGESS1 (indice 2) : seuls ses PARTNER sont
+        # conservés.
         result = march_join_bytes(
-            [fournisseur.read(), taxnum.read(), zgess1.read()],
+            [fournisseur.read(), taxnum.read(), zgess1.read(), bank.read()],
             driver_index=2,
         )
     except ValueError as exc:

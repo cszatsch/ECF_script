@@ -130,20 +130,25 @@ DEFAULT_COLUMN_LABELS = {
 
 ## Jointure des fournisseurs (`four_march`)
 
-Application web qui **fusionne trois exports CSV** sur la clé `PARTNER`,
+Application web qui **fusionne quatre exports CSV** sur la clé `PARTNER`,
 **pilotée par le fichier ZGESS1** :
 
-| Fichier      | Table SAP                | Rôle                                                              |
-|--------------|--------------------------|------------------------------------------------------------------|
-| ZGESS1       | BUT0ID                   | **fichier pilote** — détermine les lignes conservées (TYPE / IDNUMBER) |
-| FOURNISSEUR  | BUT000                   | enrichissement (raison sociale, regroupement…)                   |
-| TVA          | DFKKBPTAXNUM (converti)  | enrichissement (TVA intracom / SIRET / SIREN)                    |
+| Fichier               | Table SAP                | Rôle                                                              |
+|-----------------------|--------------------------|------------------------------------------------------------------|
+| ZGESS1                | BUT0ID                   | **fichier pilote** — détermine les lignes conservées (TYPE / IDNUMBER) |
+| FOURNISSEUR           | BUT000                   | enrichissement (raison sociale, regroupement…)                   |
+| TVA                   | DFKKBPTAXNUM (converti)  | enrichissement (TVA intracom / SIRET / SIREN)                    |
+| Coordonnées bancaires | résultat `four_iban`     | enrichissement (BANKS, IBAN, titulaire…)                         |
 
 On ne conserve que les `PARTNER` **présents dans ZGESS1** : les partenaires des
 autres fichiers absents de ZGESS1 sont ignorés. Chaque ligne de ZGESS1 produit
-une ligne en sortie, enrichie des colonnes de FOURNISSEUR et de TVA quand le
-`PARTNER` correspond (cellules vides sinon). Les colonnes de sortie restent dans
-l'ordre FOURNISSEUR, TVA, ZGESS1.
+une ligne en sortie, enrichie des colonnes des trois autres fichiers quand le
+`PARTNER` correspond (cellules vides sinon). Les colonnes de sortie suivent
+l'ordre FOURNISSEUR, TVA, ZGESS1, coordonnées bancaires.
+
+Si un partenaire figure plusieurs fois dans un fichier d'enrichissement (par
+exemple plusieurs comptes bancaires/IBAN), la **première occurrence** est
+utilisée.
 
 Dans l'application (`python app.py`, <http://127.0.0.1:5000>), cliquer sur
 **Jointure four_march**, déposer les trois fichiers et télécharger

@@ -46,6 +46,19 @@ ZGESS1 = (
 SOURCES = [FOURNISSEUR, TAXNUM, ZGESS1]
 DRIVER = 2
 
+# 4e fichier (résultat four_iban) : coordonnées bancaires + IBAN par partenaire.
+# BPC001 a deux comptes (deux lignes) ; 77777777 n'est pas dans ZGESS1.
+BANK = (
+    "PARTNER;IBAN\n"
+    "Partenaire;IBAN\n"
+    "20000068;FR76AAA\n"
+    "BPC001;FR76BBB\n"
+    "BPC001;FR76CCC\n"
+    "77777777;FR76ZZZ\n"
+).encode("utf-8")
+
+SOURCES4 = [FOURNISSEUR, TAXNUM, ZGESS1, BANK]
+
 
 def _lines():
     text = fm.join(SOURCES, driver_index=DRIVER)
@@ -112,3 +125,35 @@ def test_empty_source_raises():
 def test_invalid_driver_index_raises():
     with pytest.raises(ValueError):
         fm.join(SOURCES, driver_index=5)
+
+
+# --- Jointure à 4 fichiers (ajout du résultat four_iban) --------------------
+
+def _lines4():
+    return [ln for ln in fm.join(SOURCES4, driver_index=DRIVER).split("\r\n") if ln]
+
+
+def test_four_files_header_appends_bank_column():
+    assert _lines4()[0] == (
+        "PARTNER;BU_GROUP;NAME_ORG1;TVA intracom_xx0;SIREN_xx2;TYPE;IDNUMBER;IBAN"
+    )
+
+
+def test_four_files_iban_joined():
+    assert _lines4()[2] == "20000068;G1;Alpha;FR55;389;ZGESS1;1017;FR76AAA"
+
+
+def test_four_files_multi_account_first_wins():
+    # BPC001 a deux comptes dans le 4e fichier : la 1re occurrence (FR76BBB)
+    # est utilisée pour ses deux lignes (doublon ZGESS1).
+    rows = [ln for ln in _lines4() if ln.startswith("BPC001")]
+    assert rows == [
+        "BPC001;S100;Beta;FR20;582;ZGESS1;998;FR76BBB",
+        "BPC001;S100;Beta;FR20;582;ZGESS1;999;FR76BBB",
+    ]
+
+
+def test_four_files_bank_orphan_blank():
+    # 88888888 (dans ZGESS1) est absent du 4e fichier -> IBAN vide.
+    line = next(ln for ln in _lines4() if ln.startswith("88888888"))
+    assert line == "88888888;;;;;ZGESS1;7777;"

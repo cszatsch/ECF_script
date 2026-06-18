@@ -11,9 +11,9 @@
     <nav class="topnav"><a href="{{ url_for('home') }}">← Accueil</a></nav>
     <h1>Jointure fournisseurs</h1>
     <p class="subtitle">
-      Fusionne trois exports sur la clé <code>PARTNER</code> : la liste
-      <strong>ZGESS1</strong> enrichie des données fournisseur et des numéros
-      fiscaux.
+      Fusionne quatre exports sur la clé <code>PARTNER</code> : la liste
+      <strong>ZGESS1</strong> enrichie des données fournisseur, des numéros
+      fiscaux et des coordonnées bancaires (IBAN).
     </p>
 
     {% with messages = get_flashed_messages() %}
@@ -41,6 +41,11 @@
         <input id="zgess1" name="zgess1" type="file"
                accept=".csv,text/csv" required>
       </div>
+      <div class="file-field">
+        <label for="bank">4 · Fichier coordonnées bancaires + IBAN (résultat four_iban)</label>
+        <input id="bank" name="bank" type="file"
+               accept=".csv,text/csv" required>
+      </div>
       <button type="submit" class="btn">Joindre et télécharger</button>
     </form>
 
@@ -49,8 +54,9 @@
       <p>
         La jointure est <strong>pilotée par le fichier ZGESS1</strong> : on ne
         conserve que les lignes dont le <code>PARTNER</code> figure dans ZGESS1.
-        Les partenaires des fichiers FOURNISSEUR et TVA absents de ZGESS1 sont
-        ignorés ; les colonnes sans correspondance restent vides.
+        Les colonnes des fichiers FOURNISSEUR, TVA et coordonnées bancaires
+        (IBAN) sont ajoutées quand le <code>PARTNER</code> correspond ; sinon
+        elles restent vides.
       </p>
       <p>
         Les deux lignes d'en-tête des exports (noms techniques puis libellés
@@ -60,8 +66,10 @@
       </p>
       <p>
         Chaque ligne de ZGESS1 produit une ligne en sortie (un partenaire en
-        double dans ZGESS1 apparaît donc deux fois). Pour FOURNISSEUR et TVA, la
-        première occurrence d'un partenaire est utilisée.
+        double dans ZGESS1 apparaît donc deux fois). Pour les fichiers
+        d'enrichissement (FOURNISSEUR, TVA, coordonnées bancaires), si un
+        partenaire y figure plusieurs fois — par exemple plusieurs comptes
+        bancaires/IBAN — la <strong>première occurrence</strong> est utilisée.
       </p>
     </details>
   </main>
