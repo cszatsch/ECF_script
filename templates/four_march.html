@@ -11,8 +11,9 @@
     <nav class="topnav"><a href="{{ url_for('home') }}">← Accueil</a></nav>
     <h1>Jointure fournisseurs</h1>
     <p class="subtitle">
-      Fusionne trois exports sur la clé <code>PARTNER</code> : le fichier
-      fournisseurs (base) enrichi des numéros fiscaux et de l'identifiant ZGESS1.
+      Fusionne trois exports sur la clé <code>PARTNER</code> : la liste
+      <strong>ZGESS1</strong> enrichie des données fournisseur et des numéros
+      fiscaux.
     </p>
 
     {% with messages = get_flashed_messages() %}
@@ -26,7 +27,7 @@
     <form action="{{ url_for('join_run') }}" method="post"
           enctype="multipart/form-data">
       <div class="file-field">
-        <label for="fournisseur">1 · Fichier FOURNISSEUR (BUT000) — table de base</label>
+        <label for="fournisseur">1 · Fichier FOURNISSEUR (BUT000)</label>
         <input id="fournisseur" name="fournisseur" type="file"
                accept=".csv,text/csv" required>
       </div>
@@ -36,7 +37,7 @@
                accept=".csv,text/csv" required>
       </div>
       <div class="file-field">
-        <label for="zgess1">3 · Fichier ZGESS1 (BUT0ID)</label>
+        <label for="zgess1">3 · Fichier ZGESS1 (BUT0ID) — fichier pilote (lignes conservées)</label>
         <input id="zgess1" name="zgess1" type="file"
                accept=".csv,text/csv" required>
       </div>
@@ -46,10 +47,10 @@
     <details class="help">
       <summary>Comment ça marche</summary>
       <p>
-        La jointure conserve <strong>tous les partenaires du fichier
-        FOURNISSEUR</strong> (left join) et ajoute les colonnes des deux autres
-        fichiers lorsque le <code>PARTNER</code> correspond ; les colonnes sans
-        correspondance restent vides.
+        La jointure est <strong>pilotée par le fichier ZGESS1</strong> : on ne
+        conserve que les lignes dont le <code>PARTNER</code> figure dans ZGESS1.
+        Les partenaires des fichiers FOURNISSEUR et TVA absents de ZGESS1 sont
+        ignorés ; les colonnes sans correspondance restent vides.
       </p>
       <p>
         Les deux lignes d'en-tête des exports (noms techniques puis libellés
@@ -58,8 +59,9 @@
         séparateur <code>;</code>.
       </p>
       <p>
-        Si un partenaire apparaît plusieurs fois dans un fichier, la première
-        occurrence est retenue.
+        Chaque ligne de ZGESS1 produit une ligne en sortie (un partenaire en
+        double dans ZGESS1 apparaît donc deux fois). Pour FOURNISSEUR et TVA, la
+        première occurrence d'un partenaire est utilisée.
       </p>
     </details>
   </main>

@@ -103,9 +103,11 @@ def join_run():
         return redirect(url_for("join_page"))
 
     try:
+        # Colonnes dans l'ordre FOURNISSEUR, TVA, ZGESS1 ; les lignes sont
+        # pilotées par ZGESS1 (indice 2) : seuls ses PARTNER sont conservés.
         result = join_bytes(
-            fournisseur.read(),
-            [taxnum.read(), zgess1.read()],
+            [fournisseur.read(), taxnum.read(), zgess1.read()],
+            driver_index=2,
         )
     except ValueError as exc:
         flash(f"Jointure impossible : {exc}.")

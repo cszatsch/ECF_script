@@ -129,16 +129,20 @@ DEFAULT_COLUMN_LABELS = {
 
 ## Jointure des fournisseurs (`four_march`)
 
-Application web qui **fusionne trois exports CSV** sur la clé `PARTNER` :
+Application web qui **fusionne trois exports CSV** sur la clé `PARTNER`,
+**pilotée par le fichier ZGESS1** :
 
-| Fichier      | Table SAP                | Rôle                                        |
-|--------------|--------------------------|---------------------------------------------|
-| FOURNISSEUR  | BUT000                   | table de base (left join) — tous les partenaires |
-| TVA          | DFKKBPTAXNUM (converti)  | colonnes TVA intracom / SIRET / SIREN       |
-| ZGESS1       | BUT0ID                   | colonnes TYPE / IDNUMBER                     |
+| Fichier      | Table SAP                | Rôle                                                              |
+|--------------|--------------------------|------------------------------------------------------------------|
+| ZGESS1       | BUT0ID                   | **fichier pilote** — détermine les lignes conservées (TYPE / IDNUMBER) |
+| FOURNISSEUR  | BUT000                   | enrichissement (raison sociale, regroupement…)                   |
+| TVA          | DFKKBPTAXNUM (converti)  | enrichissement (TVA intracom / SIRET / SIREN)                    |
 
-On conserve **tous les partenaires de FOURNISSEUR** et on ajoute les colonnes
-des deux autres fichiers quand le `PARTNER` correspond (cellules vides sinon).
+On ne conserve que les `PARTNER` **présents dans ZGESS1** : les partenaires des
+autres fichiers absents de ZGESS1 sont ignorés. Chaque ligne de ZGESS1 produit
+une ligne en sortie, enrichie des colonnes de FOURNISSEUR et de TVA quand le
+`PARTNER` correspond (cellules vides sinon). Les colonnes de sortie restent dans
+l'ordre FOURNISSEUR, TVA, ZGESS1.
 
 Dans l'application (`python app.py`, <http://127.0.0.1:5000>), cliquer sur
 **Jointure four_march**, déposer les trois fichiers et télécharger
@@ -150,7 +154,9 @@ Détails gérés automatiquement :
 - **Double en-tête** des exports SAP (noms techniques + libellés français) : la
   2ᵉ ligne est détectée, ignorée comme donnée, et reproduite en sortie.
 - **Clé alphanumérique** acceptée (ex. `BP001B`, `BPC001`).
-- **Doublons** de `PARTNER` : la première occurrence est conservée.
+- **Doublons** : chaque ligne de ZGESS1 produit une ligne (un `PARTNER` en
+  double dans ZGESS1 apparaît deux fois) ; pour FOURNISSEUR et TVA, la première
+  occurrence est utilisée.
 - Séparateur (`;` ou tabulation) et encodage détectés ; sortie UTF-8 (BOM),
   séparateur `;`.
 

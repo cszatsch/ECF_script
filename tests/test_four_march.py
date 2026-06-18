@@ -1,4 +1,9 @@
-"""Tests de la jointure four_march (lancer : ``pytest``)."""
+"""Tests de la jointure four_march (lancer : ``pytest``).
+
+La jointure est pilotée par ZGESS1 : seules les lignes dont le PARTNER figure
+dans ZGESS1 sont conservées ; les colonnes restent dans l'ordre
+FOURNISSEUR, TVA, ZGESS1.
+"""
 
 import os
 import sys
@@ -9,8 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import four_march_join as fm  # noqa: E402
 
-# Fichier de base (FOURNISSEUR) : double en-tête, clé alphanumérique (BPC001)
-# et un partenaire sans enrichissement (30000000).
+# FOURNISSEUR : double en-tête ; 30000000 n'est pas dans ZGESS1 -> doit être ignoré.
 FOURNISSEUR = (
     "PARTNER;BU_GROUP;NAME_ORG1\n"
     "Partenaire;Regroupement;Nom 1\n"
@@ -19,76 +23,92 @@ FOURNISSEUR = (
     "30000000;G2;Gamma\n"
 ).encode("utf-8")
 
-# TAXNUM : double en-tête, libellé FR partiel (seule la 1re colonne a un libellé).
+# TAXNUM : double en-tête ; 20000069 n'est pas dans ZGESS1 -> doit être ignoré.
 TAXNUM = (
     "PARTNER;TVA intracom_xx0;SIREN_xx2\n"
     "Partenaire;Nº ID fiscale;\n"
     "20000068;FR55;389\n"
     "BPC001;FR20;582\n"
+    "20000069;FR99;999\n"
 ).encode("utf-8")
 
-# ZGESS1 : pas de 2e en-tête, et un doublon de clé (BPC001).
+# ZGESS1 (fichier pilote) : pas de 2e en-tête ; BPC001 en double ; 88888888
+# absent des deux autres fichiers.
 ZGESS1 = (
     "PARTNER;TYPE;IDNUMBER\n"
     "20000068;ZGESS1;1017\n"
     "BPC001;ZGESS1;998\n"
     "BPC001;ZGESS1;999\n"
+    "88888888;ZGESS1;7777\n"
 ).encode("utf-8")
 
+# Ordre des sources = ordre des colonnes ; ZGESS1 (indice 2) pilote les lignes.
+SOURCES = [FOURNISSEUR, TAXNUM, ZGESS1]
+DRIVER = 2
 
-def _result_lines():
-    text = fm.join(FOURNISSEUR, [TAXNUM, ZGESS1])
-    return text.split("\r\n")
+
+def _lines():
+    text = fm.join(SOURCES, driver_index=DRIVER)
+    return [ln for ln in text.split("\r\n") if ln]
 
 
 def test_technical_header():
-    assert _result_lines()[0] == (
+    assert _lines()[0] == (
         "PARTNER;BU_GROUP;NAME_ORG1;TVA intracom_xx0;SIREN_xx2;TYPE;IDNUMBER"
     )
 
 
 def test_french_header_reproduced_with_blanks():
-    # PARTNER->Partenaire, BU_GROUP->Regroupement, NAME_ORG1->Nom 1,
-    # TVA->Nº ID fiscale, SIREN/TYPE/IDNUMBER sans libellé -> vides.
-    assert _result_lines()[1] == "Partenaire;Regroupement;Nom 1;Nº ID fiscale;;;"
+    assert _lines()[1] == "Partenaire;Regroupement;Nom 1;Nº ID fiscale;;;"
 
 
-def test_left_join_keeps_all_base_partners():
-    lines = _result_lines()
-    # 2 lignes d'en-tête + 3 partenaires de base
-    keys = [ln.split(";")[0] for ln in lines if ln]
-    assert keys == ["PARTNER", "Partenaire", "20000068", "BPC001", "30000000"]
+def test_rows_driven_by_zgess1():
+    keys = [ln.split(";")[0] for ln in _lines()[2:]]
+    # Ordre de ZGESS1, BPC001 en double conservé.
+    assert keys == ["20000068", "BPC001", "BPC001", "88888888"]
+
+
+def test_orphans_of_other_files_dropped():
+    text = fm.join(SOURCES, driver_index=DRIVER)
+    # 30000000 (FOURNISSEUR) et 20000069 (TAXNUM) ne sont pas dans ZGESS1.
+    assert "30000000" not in text
+    assert "20000069" not in text
 
 
 def test_enrichment_values_joined():
-    lines = _result_lines()
-    assert lines[2] == "20000068;G1;Alpha;FR55;389;ZGESS1;1017"
+    assert _lines()[2] == "20000068;G1;Alpha;FR55;389;ZGESS1;1017"
 
 
-def test_alphanumeric_key_and_duplicate_first_wins():
-    # BPC001 (clé alphanumérique) ; le doublon ZGESS1 garde la 1re valeur (998).
-    line = next(ln for ln in _result_lines() if ln.startswith("BPC001"))
-    assert line == "BPC001;S100;Beta;FR20;582;ZGESS1;998"
+def test_zgess1_duplicate_produces_two_rows():
+    rows = [ln for ln in _lines() if ln.startswith("BPC001")]
+    assert rows == [
+        "BPC001;S100;Beta;FR20;582;ZGESS1;998",
+        "BPC001;S100;Beta;FR20;582;ZGESS1;999",
+    ]
 
 
-def test_unmatched_partner_has_blanks():
-    # 30000000 n'est ni dans TAXNUM ni dans ZGESS1 -> 4 colonnes vides.
-    line = next(ln for ln in _result_lines() if ln.startswith("30000000"))
-    assert line == "30000000;G2;Gamma;;;;"
+def test_zgess1_partner_absent_from_others_has_blanks():
+    line = next(ln for ln in _lines() if ln.startswith("88888888"))
+    assert line == "88888888;;;;;ZGESS1;7777"
 
 
 def test_without_french_header():
-    lines = fm.join(FOURNISSEUR, [TAXNUM, ZGESS1],
+    lines = fm.join(SOURCES, driver_index=DRIVER,
                     include_french_header=False).split("\r\n")
     assert lines[0].startswith("PARTNER;")
     assert lines[1].startswith("20000068;")  # pas de ligne de libellés FR
 
 
 def test_join_bytes_has_bom():
-    out = fm.join_bytes(FOURNISSEUR, [TAXNUM, ZGESS1])
+    out = fm.join_bytes(SOURCES, driver_index=DRIVER)
     assert out.startswith(b"\xef\xbb\xbf")
 
 
-def test_empty_base_raises():
+def test_empty_source_raises():
     with pytest.raises(ValueError):
-        fm.join(b"", [TAXNUM, ZGESS1])
+        fm.join([b"", TAXNUM, ZGESS1], driver_index=DRIVER)
+
+
+def test_invalid_driver_index_raises():
+    with pytest.raises(ValueError):
+        fm.join(SOURCES, driver_index=5)
