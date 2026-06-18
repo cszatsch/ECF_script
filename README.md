@@ -1,4 +1,12 @@
-# Convertisseur CSV — Fiches fiscales partenaires
+# Outils CSV — Fiches fiscales partenaires
+
+> Ce dépôt contient **deux outils** indépendants :
+> 1. **Convertisseur** (`app.py`, port 5000) — pivote un export de fiches
+>    fiscales (ci-dessous) ;
+> 2. **Jointure `four_march`** (`four_march.py`, port 5001) — fusionne trois
+>    exports sur la clé `PARTNER` (voir plus bas).
+
+## Convertisseur CSV
 
 Outil qui **pivote** un fichier CSV de fiches fiscales : le fichier d'entrée a
 une ligne par couple *(Partenaire, Catégorie)*, le fichier de sortie regroupe
@@ -115,6 +123,35 @@ DEFAULT_COLUMN_LABELS = {
 }
 ```
 
+## Jointure des fournisseurs (`four_march`)
+
+Application web qui **fusionne trois exports CSV** sur la clé `PARTNER` :
+
+| Fichier      | Table SAP                | Rôle                                        |
+|--------------|--------------------------|---------------------------------------------|
+| FOURNISSEUR  | BUT000                   | table de base (left join) — tous les partenaires |
+| TVA          | DFKKBPTAXNUM (converti)  | colonnes TVA intracom / SIRET / SIREN       |
+| ZGESS1       | BUT0ID                   | colonnes TYPE / IDNUMBER                     |
+
+On conserve **tous les partenaires de FOURNISSEUR** et on ajoute les colonnes
+des deux autres fichiers quand le `PARTNER` correspond (cellules vides sinon).
+
+```bash
+python four_march.py        # puis http://127.0.0.1:5001
+```
+
+Déposer les trois fichiers et télécharger `four_march_resultat.csv`. Un jeu
+d'exemple est fourni dans `examples/four_march/`.
+
+Détails gérés automatiquement :
+
+- **Double en-tête** des exports SAP (noms techniques + libellés français) : la
+  2ᵉ ligne est détectée, ignorée comme donnée, et reproduite en sortie.
+- **Clé alphanumérique** acceptée (ex. `BP001B`, `BPC001`).
+- **Doublons** de `PARTNER` : la première occurrence est conservée.
+- Séparateur (`;` ou tabulation) et encodage détectés ; sortie UTF-8 (BOM),
+  séparateur `;`.
+
 ## Tests
 
 ```bash
@@ -126,12 +163,16 @@ pytest
 
 ```
 ECF_script/
-├── app.py                 # Application web Flask (backend + routes)
-├── converter.py           # Logique de conversion + CLI
-├── templates/index.html   # Frontend (page d'upload)
-├── static/style.css       # Styles
-├── examples/              # Fichier CSV d'exemple
-├── tests/                 # Tests (pytest)
+├── app.py                  # Convertisseur — application web Flask (port 5000)
+├── converter.py            # Convertisseur — logique de conversion + CLI
+├── four_march.py           # Jointure — application web Flask (port 5001)
+├── four_march_join.py      # Jointure — logique de jointure
+├── templates/
+│   ├── index.html          # Frontend du convertisseur
+│   └── four_march.html     # Frontend de la jointure
+├── static/style.css        # Styles (communs)
+├── examples/               # Fichiers CSV d'exemple (dont examples/four_march/)
+├── tests/                  # Tests (pytest)
 ├── requirements.txt
 └── README.md
 ```

@@ -123,3 +123,26 @@ code {
   border-radius: 5px;
   font-size: 0.85em;
 }
+
+/* Champs de dépôt de fichiers (page de jointure four_march) */
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.file-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.file-field input[type="file"] {
+  font-size: 0.9rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.file-field input[type="file"]:hover {
+  border-color: var(--primary);
+}
